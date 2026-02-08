@@ -13,11 +13,15 @@ export function getSupabaseClient() {
   }
 
   if (browserClient) return browserClient;
-  const supabaseUrl =
-    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://example.supabase.co";
-  const supabaseAnonKey =
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-    "missing-anon-key-for-build-time";
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  // In the browser we require real env values; otherwise requests fail with DNS/fetch errors.
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error(
+      "Supabase client misconfigured: missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    );
+  }
 
   browserClient = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
