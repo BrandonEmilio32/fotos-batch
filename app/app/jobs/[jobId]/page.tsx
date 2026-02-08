@@ -273,12 +273,22 @@ export default function JobPage() {
 
   const assignGridBatches = async (sources: GridSource[]) => {
     if (!jobPreset) return;
+    const batchSize = 3;
+    const batchCount = Math.ceil(sources.length / batchSize);
 
-    const fullGroupCount = Math.floor(sources.length / 3);
-    for (let groupIndex = 0; groupIndex < fullGroupCount; groupIndex += 1) {
-      const group = sources.slice(groupIndex * 3, groupIndex * 3 + 3);
+    for (let groupIndex = 0; groupIndex < batchCount; groupIndex += 1) {
+      const start = groupIndex * batchSize;
+      const end = start + batchSize;
+      const realGroup = sources.slice(start, end);
+      if (realGroup.length === 0) continue;
+
+      const paddedGroup = [...realGroup];
+      while (paddedGroup.length < batchSize) {
+        paddedGroup.push(realGroup[realGroup.length - 1]);
+      }
+
       const images = await Promise.all(
-        group.map((source) => loadImageFromBlob(source.framedBlob)),
+        paddedGroup.map((source) => loadImageFromBlob(source.framedBlob)),
       );
       const gridBlob = await makeContactSheetBlob(images, {
         ...jobPreset,
@@ -292,29 +302,22 @@ export default function JobPage() {
           upsert: true,
           contentType: "image/png",
         });
-      if (uploadError) {
-        throw uploadError;
-      }
+      if (uploadError) throw uploadError;
 
       const exportRow = await tryInsertExport(gridPath);
       if (exportRow) {
         setExports((prev) => [exportRow, ...prev]);
       }
 
-      const ids = group.map((source) => source.id);
+      const ids = [...new Set(realGroup.map((source) => source.id))];
       await supabase
         .from("job_items")
         .update({ grid_path: gridPath })
         .in("id", ids);
       setItems((prev) =>
-        prev.map((item) => (ids.includes(item.id) ? { ...item, grid_path: gridPath } : item)),
-      );
-    }
-
-    const pendingRemainder = sources.length % 3;
-    if (pendingRemainder > 0) {
-      setError(
-        `Quedaron ${pendingRemainder} estudiante(s) sin grid porque el lote requiere grupos de 3.`,
+        prev.map((item) =>
+          ids.includes(item.id) ? { ...item, grid_path: gridPath } : item,
+        ),
       );
     }
   };
@@ -728,7 +731,7 @@ export default function JobPage() {
               {contactSheetLoading ? "Armando grids..." : "Generar grids 3x3"}
             </button>
             <span className="text-xs text-[var(--muted)]">
-              1 fila por estudiante, 3 estudiantes por grid.
+              1 columna por estudiante, 3 estudiantes por grid.
             </span>
           </div>
         )}

@@ -188,7 +188,7 @@ export async function makeContactSheetBlob(
   images: HTMLImageElement[],
   preset: JobPreset,
 ) {
-  if (images.length < preset.grid_rows) {
+  if (images.length < preset.grid_cols) {
     throw new Error("Se necesitan al menos tres imágenes para el collage.");
   }
 
@@ -207,12 +207,13 @@ export async function makeContactSheetBlob(
   ctx.fillStyle = preset.background_color || "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (let row = 0; row < preset.grid_rows; row += 1) {
-    const rowImg = images[row];
-    for (let col = 0; col < preset.grid_cols; col += 1) {
+  // Each column uses one student image repeated vertically.
+  for (let col = 0; col < preset.grid_cols; col += 1) {
+    const colImg = images[col];
+    for (let row = 0; row < preset.grid_rows; row += 1) {
       const x = col * preset.grid_cell_w + col * gap;
       const y = row * preset.grid_cell_h + row * gap;
-      drawImageContain(ctx, rowImg, x, y, preset.grid_cell_w, preset.grid_cell_h);
+      drawImageContain(ctx, colImg, x, y, preset.grid_cell_w, preset.grid_cell_h);
     }
   }
 

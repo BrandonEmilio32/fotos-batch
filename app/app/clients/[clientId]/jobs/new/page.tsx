@@ -148,7 +148,7 @@ export default function NewJobPage() {
           })}
         </div>
         <p className="mt-4 text-xs text-[var(--muted)]">
-          Collage 3x3: cada fila es la misma foto repetida 3 veces,
+          Collage 3x3: cada columna es la misma foto repetida 3 veces,
           mostrando toda la imagen (contain/letterbox). Si sobra espacio, el
           fondo neutro se encarga de rellenar.
         </p>
