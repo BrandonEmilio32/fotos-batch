@@ -426,28 +426,29 @@ export default function JobPage() {
         .eq("id", jobId);
       setJob((prev) => (prev ? { ...prev, status: finalStatus } : prev));
 
-      const { data: unassignedRows, error: unassignedError } = await supabase
-        .from("job_items")
-        .select("id, framed_path")
-        .eq("job_id", jobId)
-        .eq("status", "done")
-        .is("grid_path", null)
-        .order("created_at", { ascending: true });
-      if (unassignedError) {
-        throw unassignedError;
-      }
-
       const missingSources: GridSource[] = [];
-      for (const row of (unassignedRows ?? []) as { id: string; framed_path: string | null }[]) {
+      const existingUnassigned = items.filter(
+        (item) => item.status === "done" && !item.grid_path && item.framed_path,
+      );
+
+      for (const row of existingUnassigned) {
         if (!row.framed_path) continue;
-        if (processedSources.find((source) => source.id === row.id)) continue;
+        if (processedSources.some((source) => source.id === row.id)) continue;
         const framedBlob = await fetchSignedBlob(row.framed_path);
         missingSources.push({ id: row.id, framedBlob });
       }
 
       const allSources = [...processedSources, ...missingSources];
-      if (allSources.length >= 3) {
-        await assignGridBatches(allSources);
+      if (allSources.length > 0) {
+        try {
+          await assignGridBatches(allSources);
+        } catch (gridErr) {
+          const message =
+            gridErr instanceof Error
+              ? gridErr.message
+              : "Se procesaron fotos, pero hubo error al generar algunos grids.";
+          setError(message);
+        }
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error general.";
@@ -551,8 +552,8 @@ export default function JobPage() {
     const pendingGridItems = items.filter(
       (item) => item.status === "done" && !item.grid_path,
     );
-    if (pendingGridItems.length < 3) {
-      setError("Necesitas al menos 3 fotos procesadas para el collage 3x3.");
+    if (pendingGridItems.length === 0) {
+      setError(null);
       return;
     }
 
@@ -721,14 +722,14 @@ export default function JobPage() {
             }}
           />
         </div>
-        {pendingGridCount >= 3 && (
+        {pendingGridCount > 0 && (
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               onClick={generateContactSheet}
               disabled={contactSheetLoading}
               className="rounded-full bg-[var(--panel-strong)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--panel)] disabled:opacity-60"
             >
-              {contactSheetLoading ? "Armando grids..." : "Generar grids 3x3"}
+              {contactSheetLoading ? "Armando grids..." : "Generar grids pendientes"}
             </button>
             <span className="text-xs text-[var(--muted)]">
               1 columna por estudiante, 3 estudiantes por grid.
