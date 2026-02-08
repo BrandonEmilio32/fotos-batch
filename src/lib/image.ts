@@ -57,6 +57,22 @@ export function loadImageFromUrl(url: string) {
   });
 }
 
+export function loadImageFromBlob(blob: Blob) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("No se pudo cargar la imagen desde blob."));
+    };
+    img.src = url;
+  });
+}
+
 export function drawImageCover(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,

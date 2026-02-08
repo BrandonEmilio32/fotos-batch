@@ -18,6 +18,18 @@ type ExportRow = {
   created_at: string;
 };
 
+function resolveExportPath(row: Record<string, unknown>) {
+  const candidates = [
+    row.file_path,
+    row.zip_path,
+    row.export_path,
+    row.path,
+    row.output_path,
+  ];
+  const found = candidates.find((value) => typeof value === "string");
+  return (found as string | undefined) ?? "";
+}
+
 export default function ClientsPage() {
   const supabase = getSupabaseClient();
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -43,11 +55,22 @@ export default function ClientsPage() {
           .select("*")
           .order("created_at", { ascending: false }),
       ]);
-    if (error || exportsError) {
-      setError(error?.message || exportsError?.message || "Error al cargar.");
+    if (error) {
+      setError(error.message);
     } else {
       setClients((data ?? []) as ClientRow[]);
-      setExports((exportsData ?? []) as ExportRow[]);
+      if (!exportsError) {
+        const normalized = ((exportsData ?? []) as Record<string, unknown>[]).map(
+          (row) =>
+            ({
+              ...row,
+              file_path: resolveExportPath(row),
+            }) as ExportRow,
+        );
+        setExports(normalized.filter((row) => row.file_path));
+      } else {
+        setExports([]);
+      }
     }
     setLoading(false);
   }, [supabase]);

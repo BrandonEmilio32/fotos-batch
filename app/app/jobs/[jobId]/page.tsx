@@ -7,6 +7,7 @@ import { saveAs } from "file-saver";
 import { getSupabaseClient } from "@/lib/supabase";
 import {
   loadImageFromFile,
+  loadImageFromBlob,
   loadImageFromUrl,
   makeFramedBlob,
   makeContactSheetBlob,
@@ -59,6 +60,18 @@ type ExportRow = {
   created_at: string;
 };
 
+function resolveExportPath(row: Record<string, unknown>) {
+  const candidates = [
+    row.file_path,
+    row.zip_path,
+    row.export_path,
+    row.path,
+    row.output_path,
+  ];
+  const found = candidates.find((value) => typeof value === "string");
+  return (found as string | undefined) ?? "";
+}
+
 export default function JobPage() {
   const { jobId } = useParams<{ jobId: string }>();
   const supabase = getSupabaseClient();
@@ -80,6 +93,7 @@ export default function JobPage() {
   });
   const [deletingJob, setDeletingJob] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [exportsAvailable, setExportsAvailable] = useState(true);
 
   const fileMapRef = useRef<Map<string, File>>(new Map());
   const blobMapRef = useRef<Map<string, { framed: Blob }>>(new Map());
@@ -132,9 +146,18 @@ export default function JobPage() {
       .eq("job_id", jobId)
       .order("created_at", { ascending: false });
     if (exportsError) {
-      setError(exportsError.message);
+      setExportsAvailable(false);
+      setExports([]);
     } else {
-      setExports((exportsData ?? []) as ExportRow[]);
+      const normalized = ((exportsData ?? []) as Record<string, unknown>[]).map(
+        (row) =>
+          ({
+            ...row,
+            file_path: resolveExportPath(row),
+          }) as ExportRow,
+      );
+      setExports(normalized.filter((row) => row.file_path));
+      setExportsAvailable(true);
     }
 
     if (jobData?.frame_id) {
@@ -210,6 +233,37 @@ export default function JobPage() {
     );
   };
 
+  const tryInsertExport = async (path: string) => {
+    if (!exportsAvailable) return null;
+
+    const payloads: Record<string, unknown>[] = [
+      { job_id: jobId, file_path: path },
+      { job_id: jobId, zip_path: path },
+      { job_id: jobId, export_path: path },
+      { job_id: jobId, path },
+      { job_id: jobId, output_path: path },
+    ];
+
+    for (const payload of payloads) {
+      const { data, error } = await supabase
+        .from("job_exports")
+        .insert(payload)
+        .select()
+        .single();
+      if (!error && data) {
+        const row = data as Record<string, unknown>;
+        const normalized = {
+          ...row,
+          file_path: resolveExportPath(row),
+        } as ExportRow;
+        return normalized.file_path ? normalized : null;
+      }
+    }
+
+    setExportsAvailable(false);
+    return null;
+  };
+
   const processAll = async () => {
     if (!jobPreset || !job) return;
     setProcessing(true);
@@ -279,7 +333,8 @@ export default function JobPage() {
           });
 
           if (contactSources.length < 3) {
-            contactSources.push({ id: item.id, img: studentImg });
+            const framedImg = await loadImageFromBlob(framedBlob);
+            contactSources.push({ id: item.id, img: framedImg });
           }
         } catch (err) {
           failedCount += 1;
@@ -331,15 +386,9 @@ export default function JobPage() {
             contentType: "image/png",
           });
         if (!uploadError) {
-          const { data: exportRow, error: exportError } = await supabase
-            .from("job_exports")
-            .insert({ job_id: jobId, file_path: contactPath })
-            .select()
-            .single();
-          if (exportError) throw exportError;
-
+          const exportRow = await tryInsertExport(contactPath);
           if (exportRow) {
-            setExports((prev) => [exportRow as ExportRow, ...prev]);
+            setExports((prev) => [exportRow, ...prev]);
           }
 
           const ids = contactSources.slice(0, 3).map((entry) => entry.id);
@@ -409,13 +458,9 @@ export default function JobPage() {
           contentType: "application/zip",
         });
       if (!uploadError) {
-        const { data: exportRow, error: exportError } = await supabase
-          .from("job_exports")
-          .insert({ job_id: jobId, file_path: zipPath })
-          .select()
-          .single();
-        if (!exportError && exportRow) {
-          setExports((prev) => [exportRow as ExportRow, ...prev]);
+        const exportRow = await tryInsertExport(zipPath);
+        if (exportRow) {
+          setExports((prev) => [exportRow, ...prev]);
         }
       }
     } catch (err) {
@@ -469,12 +514,15 @@ export default function JobPage() {
     try {
       const firstThree = readyItems.slice(0, 3);
       const images = await Promise.all(
-        firstThree.map((item) => {
-          const file = fileMapRef.current.get(item.id);
-          if (!file) {
-            throw new Error("Faltan archivos originales para el collage.");
+        firstThree.map(async (item) => {
+          if (!item.framed_path) {
+            throw new Error("Falta la foto enmarcada para armar el collage.");
           }
-          return loadImageFromFile(file);
+          const cached = blobMapRef.current.get(item.id);
+          const framedBlob = cached?.framed
+            ? cached.framed
+            : await fetchSignedBlob(item.framed_path);
+          return loadImageFromBlob(framedBlob);
         }),
       );
 
@@ -493,16 +541,10 @@ export default function JobPage() {
         });
       if (uploadError) throw uploadError;
 
-      const { data: exportRow, error: exportError } = await supabase
-        .from("job_exports")
-        .insert({ job_id: jobId, file_path: path })
-        .select()
-        .single();
-      if (exportError) throw exportError;
-
       saveAs(contactBlob, "contact_sheet.png");
+      const exportRow = await tryInsertExport(path);
       if (exportRow) {
-        setExports((prev) => [exportRow as ExportRow, ...prev]);
+        setExports((prev) => [exportRow, ...prev]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo generar el collage.");
