@@ -57,7 +57,7 @@ export default function LoginPage() {
           </span>
         </div>
         <p className="mt-3 text-sm text-[var(--muted)]">
-          Administra tus trabajos de fotos escolares con estilo.
+          Administra tus grupos de fotos escolares con estilo.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

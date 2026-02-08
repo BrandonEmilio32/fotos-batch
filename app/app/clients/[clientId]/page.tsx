@@ -149,7 +149,7 @@ export default function ClientDetailPage() {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
-            Cliente
+            Escuela
           </p>
           <h2 className="text-2xl font-semibold text-white">
             {client?.name ?? "Cargando..."}
@@ -159,7 +159,7 @@ export default function ClientDetailPage() {
           href={`/app/clients/${clientId}/jobs/new`}
           className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black hover:brightness-110"
         >
-          Nuevo trabajo
+          Nuevo grupo
         </Link>
       </div>
 
@@ -260,10 +260,10 @@ export default function ClientDetailPage() {
       </section>
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
-        <h3 className="text-lg font-semibold text-white">Trabajos</h3>
+        <h3 className="text-lg font-semibold text-white">Grupos</h3>
         <div className="mt-4 grid gap-3">
           {jobs.length === 0 && (
-            <p className="text-sm text-[var(--muted)]">No hay trabajos.</p>
+            <p className="text-sm text-[var(--muted)]">No hay grupos.</p>
           )}
           {jobs.map((job) => (
             <Link

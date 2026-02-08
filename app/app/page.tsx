@@ -138,8 +138,8 @@ export default function ClientsPage() {
     <div className="space-y-8">
       <section className="grid gap-4 lg:grid-cols-4">
         {[
-          { label: "Clientes activos", value: clients.length, delta: "+3.5%" },
-          { label: "Trabajos recientes", value: 12, delta: "+11%" },
+          { label: "Escuelas activas", value: clients.length, delta: "+3.5%" },
+          { label: "Grupos recientes", value: 12, delta: "+11%" },
           { label: "Procesos hoy", value: 34, delta: "-2.4%" },
           { label: "Descargas", value: 18, delta: "+5.5%" },
         ].map((stat) => (
@@ -162,7 +162,7 @@ export default function ClientsPage() {
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Nuevo cliente</h2>
+          <h2 className="text-lg font-semibold text-white">Nueva escuela</h2>
           <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
             New
           </span>
@@ -191,7 +191,7 @@ export default function ClientsPage() {
             disabled={creating}
             className="w-full rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
           >
-            {creating ? "Guardando..." : "Crear cliente"}
+            {creating ? "Guardando..." : "Crear escuela"}
           </button>
         </form>
         {error && (
@@ -246,7 +246,7 @@ export default function ClientsPage() {
 
       <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-white">Clientes</h2>
+          <h2 className="text-lg font-semibold text-white">Escuelas</h2>
           <button
             onClick={loadClients}
             className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--muted)] hover:bg-[var(--panel-strong)]"
@@ -263,7 +263,7 @@ export default function ClientsPage() {
         )}
         {!loading && !error && clients.length === 0 && (
           <p className="mt-4 text-sm text-[var(--muted)]">
-            No hay clientes todavía.
+            No hay escuelas todavia.
           </p>
         )}
         <div className="mt-4 grid gap-3">

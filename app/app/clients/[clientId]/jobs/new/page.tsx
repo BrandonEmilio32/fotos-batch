@@ -18,7 +18,7 @@ export default function NewJobPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const [jobName, setJobName] = useState("Trabajo escolar");
+  const [jobName, setJobName] = useState("Grupo escolar");
   const [groupLabel, setGroupLabel] = useState("");
   const [frameId, setFrameId] = useState<string | null>(null);
   const [outputFormat, setOutputFormat] = useState<"jpg" | "png">("jpg");
@@ -113,7 +113,7 @@ export default function NewJobPage() {
     <div className="space-y-6">
       <div>
         <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
-          Nuevo trabajo
+          Nuevo grupo
         </p>
         <h2 className="text-2xl font-semibold text-white">
           Configurar preset
@@ -161,7 +161,7 @@ export default function NewJobPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="text-sm font-medium text-white">
-              Nombre del trabajo
+              Nombre del grupo
             </label>
             <input
               value={jobName}
@@ -316,7 +316,7 @@ export default function NewJobPage() {
           disabled={saving}
           className="mt-6 w-full rounded-xl bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black hover:brightness-110 disabled:opacity-60"
         >
-          {saving ? "Creando..." : "Crear trabajo"}
+          {saving ? "Creando..." : "Crear grupo"}
         </button>
       </form>
     </div>

@@ -95,14 +95,14 @@ export default function AppLayout({
               href="/app"
               className="flex items-center justify-between rounded-full px-4 py-2 text-[var(--muted)] hover:bg-[var(--panel)] hover:text-white"
             >
-              Clientes
+              Escuelas
               <span className="text-xs">Vista</span>
             </Link>
             <Link
               href="/app"
               className="flex items-center justify-between rounded-full px-4 py-2 text-[var(--muted)] hover:bg-[var(--panel)] hover:text-white"
             >
-              Trabajos
+              Grupos
               <span className="text-xs">Jobs</span>
             </Link>
           </nav>
