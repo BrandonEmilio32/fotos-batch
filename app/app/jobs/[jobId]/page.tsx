@@ -60,6 +60,11 @@ type ExportRow = {
   created_at: string;
 };
 
+type GridSource = {
+  id: string;
+  framedBlob: Blob;
+};
+
 function resolveExportPath(row: Record<string, unknown>) {
   const candidates = [
     row.file_path,
@@ -85,7 +90,9 @@ export default function JobPage() {
   const [downloading, setDownloading] = useState(false);
   const [progress, setProgress] = useState({ processed: 0, total: 0 });
   const [contactSheetLoading, setContactSheetLoading] = useState(false);
-  const readyItemsCount = items.filter((item) => item.status === "done").length;
+  const pendingGridCount = items.filter(
+    (item) => item.status === "done" && !item.grid_path,
+  ).length;
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({
     done: 0,
@@ -264,6 +271,54 @@ export default function JobPage() {
     return null;
   };
 
+  const assignGridBatches = async (sources: GridSource[]) => {
+    if (!jobPreset) return;
+
+    const fullGroupCount = Math.floor(sources.length / 3);
+    for (let groupIndex = 0; groupIndex < fullGroupCount; groupIndex += 1) {
+      const group = sources.slice(groupIndex * 3, groupIndex * 3 + 3);
+      const images = await Promise.all(
+        group.map((source) => loadImageFromBlob(source.framedBlob)),
+      );
+      const gridBlob = await makeContactSheetBlob(images, {
+        ...jobPreset,
+        grid_cols: 3,
+        grid_rows: 3,
+      });
+      const gridPath = `${jobId}/grid_batch_${Date.now()}_${groupIndex + 1}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("outputs")
+        .upload(gridPath, gridBlob, {
+          upsert: true,
+          contentType: "image/png",
+        });
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      const exportRow = await tryInsertExport(gridPath);
+      if (exportRow) {
+        setExports((prev) => [exportRow, ...prev]);
+      }
+
+      const ids = group.map((source) => source.id);
+      await supabase
+        .from("job_items")
+        .update({ grid_path: gridPath })
+        .in("id", ids);
+      setItems((prev) =>
+        prev.map((item) => (ids.includes(item.id) ? { ...item, grid_path: gridPath } : item)),
+      );
+    }
+
+    const pendingRemainder = sources.length % 3;
+    if (pendingRemainder > 0) {
+      setError(
+        `Quedaron ${pendingRemainder} estudiante(s) sin grid porque el lote requiere grupos de 3.`,
+      );
+    }
+  };
+
   const processAll = async () => {
     if (!jobPreset || !job) return;
     setProcessing(true);
@@ -280,7 +335,7 @@ export default function JobPage() {
       const frameImg = frameUrl ? await loadImageFromUrl(frameUrl) : null;
       let processedCount = 0;
       let failedCount = 0;
-      const contactSources: { id: string; img: HTMLImageElement }[] = [];
+      const processedSources: GridSource[] = [];
 
       for (const item of items) {
         if (item.status !== "pending") continue;
@@ -332,10 +387,7 @@ export default function JobPage() {
             framed: framedBlob,
           });
 
-          if (contactSources.length < 3) {
-            const framedImg = await loadImageFromBlob(framedBlob);
-            contactSources.push({ id: item.id, img: framedImg });
-          }
+          processedSources.push({ id: item.id, framedBlob });
         } catch (err) {
           failedCount += 1;
           const message =
@@ -371,37 +423,28 @@ export default function JobPage() {
         .eq("id", jobId);
       setJob((prev) => (prev ? { ...prev, status: finalStatus } : prev));
 
-      if (contactSources.length >= 3) {
-        const images = contactSources.slice(0, 3).map((entry) => entry.img);
-        const contactBlob = await makeContactSheetBlob(images, {
-          ...jobPreset,
-          grid_cols: 3,
-          grid_rows: 3,
-        });
-        const contactPath = `${jobId}/contact_sheet_${Date.now()}.png`;
-        const { error: uploadError } = await supabase.storage
-          .from("outputs")
-          .upload(contactPath, contactBlob, {
-            upsert: true,
-            contentType: "image/png",
-          });
-        if (!uploadError) {
-          const exportRow = await tryInsertExport(contactPath);
-          if (exportRow) {
-            setExports((prev) => [exportRow, ...prev]);
-          }
+      const { data: unassignedRows, error: unassignedError } = await supabase
+        .from("job_items")
+        .select("id, framed_path")
+        .eq("job_id", jobId)
+        .eq("status", "done")
+        .is("grid_path", null)
+        .order("created_at", { ascending: true });
+      if (unassignedError) {
+        throw unassignedError;
+      }
 
-          const ids = contactSources.slice(0, 3).map((entry) => entry.id);
-          await supabase
-            .from("job_items")
-            .update({ grid_path: contactPath })
-            .in("id", ids);
-          setItems((prev) =>
-            prev.map((item) =>
-              ids.includes(item.id) ? { ...item, grid_path: contactPath } : item,
-            ),
-          );
-        }
+      const missingSources: GridSource[] = [];
+      for (const row of (unassignedRows ?? []) as { id: string; framed_path: string | null }[]) {
+        if (!row.framed_path) continue;
+        if (processedSources.find((source) => source.id === row.id)) continue;
+        const framedBlob = await fetchSignedBlob(row.framed_path);
+        missingSources.push({ id: row.id, framedBlob });
+      }
+
+      const allSources = [...processedSources, ...missingSources];
+      if (allSources.length >= 3) {
+        await assignGridBatches(allSources);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error general.";
@@ -502,8 +545,10 @@ export default function JobPage() {
 
   const generateContactSheet = async () => {
     if (!job || !jobPreset) return;
-    const readyItems = items.filter((item) => item.status === "done");
-    if (readyItems.length < 3) {
+    const pendingGridItems = items.filter(
+      (item) => item.status === "done" && !item.grid_path,
+    );
+    if (pendingGridItems.length < 3) {
       setError("Necesitas al menos 3 fotos procesadas para el collage 3x3.");
       return;
     }
@@ -512,40 +557,17 @@ export default function JobPage() {
     setError(null);
 
     try {
-      const firstThree = readyItems.slice(0, 3);
-      const images = await Promise.all(
-        firstThree.map(async (item) => {
-          if (!item.framed_path) {
-            throw new Error("Falta la foto enmarcada para armar el collage.");
-          }
-          const cached = blobMapRef.current.get(item.id);
-          const framedBlob = cached?.framed
-            ? cached.framed
-            : await fetchSignedBlob(item.framed_path);
-          return loadImageFromBlob(framedBlob);
-        }),
-      );
-
-      const contactBlob = await makeContactSheetBlob(images, {
-        ...jobPreset,
-        grid_rows: 3,
-        grid_cols: 3,
-      });
-
-      const path = `${jobId}/contact_sheet_${Date.now()}.png`;
-      const { error: uploadError } = await supabase.storage
-        .from("outputs")
-        .upload(path, contactBlob, {
-          upsert: true,
-          contentType: "image/png",
-        });
-      if (uploadError) throw uploadError;
-
-      saveAs(contactBlob, "contact_sheet.png");
-      const exportRow = await tryInsertExport(path);
-      if (exportRow) {
-        setExports((prev) => [exportRow, ...prev]);
+      const sources: GridSource[] = [];
+      for (const item of pendingGridItems) {
+        if (!item.framed_path) continue;
+        const cached = blobMapRef.current.get(item.id);
+        const framedBlob = cached?.framed
+          ? cached.framed
+          : await fetchSignedBlob(item.framed_path);
+        sources.push({ id: item.id, framedBlob });
       }
+
+      await assignGridBatches(sources);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo generar el collage.");
     } finally {
@@ -696,17 +718,17 @@ export default function JobPage() {
             }}
           />
         </div>
-        {readyItemsCount >= 3 && (
+        {pendingGridCount >= 3 && (
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               onClick={generateContactSheet}
               disabled={contactSheetLoading}
               className="rounded-full bg-[var(--panel-strong)] px-4 py-2 text-xs font-semibold text-white hover:bg-[var(--panel)] disabled:opacity-60"
             >
-              {contactSheetLoading ? "Armando collage..." : "Generar collage 3x3"}
+              {contactSheetLoading ? "Armando grids..." : "Generar grids 3x3"}
             </button>
             <span className="text-xs text-[var(--muted)]">
-              3 filas, cada fila repite la misma foto del estudiante.
+              1 fila por estudiante, 3 estudiantes por grid.
             </span>
           </div>
         )}

@@ -24,12 +24,12 @@ export default function NewJobPage() {
   const [outputFormat, setOutputFormat] = useState<"jpg" | "png">("jpg");
   const [outputQuality, setOutputQuality] = useState(0.92);
   const [backgroundColor, setBackgroundColor] = useState("#ffffff");
-  const [targetWidth, setTargetWidth] = useState(1200);
-  const [targetHeight, setTargetHeight] = useState(1600);
+  const [targetWidth, setTargetWidth] = useState(4000);
+  const [targetHeight, setTargetHeight] = useState(6000);
   const [gridCols, setGridCols] = useState(3);
   const [gridRows, setGridRows] = useState(3);
-  const [gridCellW, setGridCellW] = useState(400);
-  const [gridCellH, setGridCellH] = useState(400);
+  const [gridCellW, setGridCellW] = useState(1333);
+  const [gridCellH, setGridCellH] = useState(2000);
   const [gridGap, setGridGap] = useState(0);
   const aspectPresets = [
     {
@@ -148,7 +148,7 @@ export default function NewJobPage() {
           })}
         </div>
         <p className="mt-4 text-xs text-[var(--muted)]">
-          Collage 3x3: cada columna es la misma foto repetida 3 veces,
+          Collage 3x3: cada fila es la misma foto repetida 3 veces,
           mostrando toda la imagen (contain/letterbox). Si sobra espacio, el
           fondo neutro se encarga de rellenar.
         </p>
