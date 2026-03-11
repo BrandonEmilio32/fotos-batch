@@ -367,10 +367,10 @@ export default function DashboardPage() {
                 </p>
               </div>
               <Link
-                href={clients[0] ? `/app/clients/${clients[0].id}` : "#"}
-                className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--accent)] hover:bg-[var(--panel-strong)] disabled:opacity-60"
+                href="/app/marcos"
+                className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--accent)] hover:bg-[var(--panel-strong)]"
               >
-                Gestionar marcos
+                Ver y subir marcos
               </Link>
             </div>
 

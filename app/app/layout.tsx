@@ -98,6 +98,13 @@ export default function AppLayout({
               Escuelas
               <span className="text-xs">Listado</span>
             </Link>
+            <Link
+              href="/app/marcos"
+              className="flex items-center justify-between rounded-full px-4 py-2 text-[var(--muted)] hover:bg-[var(--panel)] hover:text-white"
+            >
+              Marcos
+              <span className="text-xs">Catálogo</span>
+            </Link>
           </nav>
 
           <div className="mt-auto pt-8">
