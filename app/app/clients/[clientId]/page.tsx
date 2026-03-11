@@ -55,7 +55,6 @@ export default function ClientDetailPage() {
       supabase
         .from("frames")
         .select("*")
-        .eq("client_id", clientId)
         .order("created_at", { ascending: false }),
       supabase
         .from("jobs")
