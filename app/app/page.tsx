@@ -168,10 +168,20 @@ export default function DashboardPage() {
           {/* Cards de escuelas recientes */}
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Escuelas recientes</h2>
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
+                  Inicio
+                </p>
+                <h2 className="mt-1 text-xl font-semibold text-white">
+                  Escuelas recientes
+                </h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Atajos directos a las escuelas que más usas.
+                </p>
+              </div>
               <Link
                 href="/app/escuelas"
-                className="text-xs font-medium text-[var(--accent)] hover:underline"
+                className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--accent)] hover:bg-[var(--panel-strong)]"
               >
                 Ver todas
               </Link>
@@ -186,12 +196,12 @@ export default function DashboardPage() {
               </p>
             )}
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="mt-4 grid gap-4 md:grid-cols-4">
               {clients.slice(0, 4).map((client) => (
                 <Link
                   key={client.id}
                   href={`/app/clients/${client.id}`}
-                  className="group rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] p-4 text-sm shadow-sm transition hover:-translate-y-0.5 hover:bg-[var(--panel)]"
+                  className="group flex flex-col justify-between rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] p-5 text-sm shadow-lg shadow-black/30 transition hover:-translate-y-1 hover:bg-[var(--panel)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -217,10 +227,18 @@ export default function DashboardPage() {
           </section>
 
           {/* Nueva escuela inline en dashboard */}
-          <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
+          <section className="rounded-2xl border border-[var(--accent)] bg-[var(--panel)] p-6 shadow-xl shadow-[var(--accent)]/20">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">Nueva escuela</h2>
-              <span className="rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)]">
+              <div>
+                <p className="text-xs uppercase tracking-[0.3em] text-[var(--accent)]">
+                  Acción principal
+                </p>
+                <h2 className="mt-1 text-xl font-semibold text-white">Añadir nueva escuela</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Crea una escuela para empezar a cargar grupos y marcos.
+                </p>
+              </div>
+              <span className="hidden rounded-full border border-[var(--border)] px-3 py-1 text-xs text-[var(--muted)] sm:inline-flex">
                 Alta rápida
               </span>
             </div>
