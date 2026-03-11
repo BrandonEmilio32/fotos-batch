@@ -82,28 +82,21 @@ export default function AppLayout({
 
           <nav className="mt-8 space-y-2 text-sm">
             <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
-              Navigation
+              Navegación
             </p>
             <Link
               href="/app"
               className="flex items-center justify-between rounded-full bg-[var(--panel)] px-4 py-2 text-white shadow"
             >
               Dashboard
-              <span className="text-xs text-[var(--muted)]">Clients</span>
+              <span className="text-xs text-[var(--muted)]">Resumen</span>
             </Link>
             <Link
-              href="/app"
+              href="/app/escuelas"
               className="flex items-center justify-between rounded-full px-4 py-2 text-[var(--muted)] hover:bg-[var(--panel)] hover:text-white"
             >
               Escuelas
-              <span className="text-xs">Vista</span>
-            </Link>
-            <Link
-              href="/app"
-              className="flex items-center justify-between rounded-full px-4 py-2 text-[var(--muted)] hover:bg-[var(--panel)] hover:text-white"
-            >
-              Grupos
-              <span className="text-xs">Jobs</span>
+              <span className="text-xs">Listado</span>
             </Link>
           </nav>
 
