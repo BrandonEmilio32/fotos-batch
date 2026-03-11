@@ -19,6 +19,13 @@ type ExportRow = {
   created_at: string;
 };
 
+type FrameRow = {
+  id: string;
+  name: string;
+  file_path: string;
+  created_at: string;
+};
+
 function resolveExportPath(row: Record<string, unknown>) {
   const candidates = [
     row.file_path,
@@ -36,6 +43,7 @@ export default function DashboardPage() {
   const supabase = getSupabaseClient();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [exports, setExports] = useState<ExportRow[]>([]);
+  const [frames, setFrames] = useState<FrameRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -48,33 +56,39 @@ export default function DashboardPage() {
   const loadClients = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const [{ data, error }, { data: exportsData, error: exportsError }] =
-      await Promise.all([
-        supabase.from("clients").select("*").order("created_at", {
-          ascending: false,
-        }),
-        supabase
-          .from("job_exports")
-          .select("*")
-          .order("created_at", { ascending: false }),
-      ]);
-    if (error) {
-      setError(error.message);
+    const [
+      { data, error },
+      { data: exportsData, error: exportsError },
+      { data: framesData, error: framesError },
+    ] = await Promise.all([
+      supabase.from("clients").select("*").order("created_at", {
+        ascending: false,
+      }),
+      supabase
+        .from("job_exports")
+        .select("*")
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("frames")
+        .select("id, name, file_path, created_at")
+        .order("created_at", { ascending: false }),
+    ]);
+
+    if (error || exportsError || framesError) {
+      setError(error?.message || exportsError?.message || framesError?.message || "No se pudo cargar el dashboard.");
     } else {
       setClients((data ?? []) as ClientRow[]);
-      if (!exportsError) {
-        const normalized = ((exportsData ?? []) as Record<string, unknown>[]).map(
-          (row) =>
-            ({
-              ...row,
-              file_path: resolveExportPath(row),
-            }) as ExportRow,
-        );
-        setExports(normalized.filter((row) => row.file_path));
-      } else {
-        setExports([]);
-      }
+      const normalizedExports = ((exportsData ?? []) as Record<string, unknown>[]).map(
+        (row) =>
+          ({
+            ...row,
+            file_path: resolveExportPath(row),
+          }) as ExportRow,
+      );
+      setExports(normalizedExports.filter((row) => row.file_path));
+      setFrames((framesData ?? []) as FrameRow[]);
     }
+
     setLoading(false);
   }, [supabase]);
 
@@ -285,7 +299,7 @@ export default function DashboardPage() {
           </section>
         </div>
 
-        {/* Columna derecha: zips listos con accordion */}
+        {/* Columna derecha: zips listos + marcos */}
         <div className="space-y-6">
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
             <div className="flex items-center justify-between">
@@ -337,6 +351,49 @@ export default function DashboardPage() {
                         {deleting === item.id ? "Eliminando..." : "Eliminar"}
                       </button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Marcos globales */}
+          <section className="rounded-2xl border border-[var(--border)] bg-[var(--panel)] p-6 shadow-lg shadow-black/30">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Marcos</h2>
+                <p className="mt-1 text-xs text-[var(--muted)]">
+                  Catálogo global de marcos disponibles para todas las escuelas.
+                </p>
+              </div>
+              <Link
+                href={clients[0] ? `/app/clients/${clients[0].id}` : "#"}
+                className="rounded-full border border-[var(--border)] px-3 py-1 text-xs font-medium text-[var(--accent)] hover:bg-[var(--panel-strong)] disabled:opacity-60"
+              >
+                Gestionar marcos
+              </Link>
+            </div>
+
+            {frames.length === 0 && !loading && (
+              <p className="mt-4 text-sm text-[var(--muted)]">
+                Todavía no hay marcos cargados.
+              </p>
+            )}
+
+            {frames.length > 0 && (
+              <div className="mt-4 grid gap-3">
+                {frames.slice(0, 6).map((frame) => (
+                  <div
+                    key={frame.id}
+                    className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3 text-sm"
+                  >
+                    <div>
+                      <p className="font-medium text-white">{frame.name}</p>
+                      <p className="text-xs text-[var(--muted)]">{frame.file_path}</p>
+                    </div>
+                    <span className="text-[10px] text-[var(--muted)]">
+                      {new Date(frame.created_at).toLocaleDateString("es-ES")}
+                    </span>
                   </div>
                 ))}
               </div>
