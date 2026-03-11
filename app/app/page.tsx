@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { getSupabaseClient } from "@/lib/supabase";
 
 type ClientRow = {
@@ -31,6 +32,7 @@ function resolveExportPath(row: Record<string, unknown>) {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const supabase = getSupabaseClient();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [exports, setExports] = useState<ExportRow[]>([]);
@@ -84,18 +86,29 @@ export default function DashboardPage() {
     event.preventDefault();
     setCreating(true);
     setError(null);
-    const { error } = await supabase.from("clients").insert({
-      name,
-      notes: notes || null,
-    });
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        name,
+        notes: notes || null,
+      })
+      .select("id")
+      .single();
     if (error) {
       setError(error.message);
-    } else {
-      setName("");
-      setNotes("");
-      loadClients();
+      setCreating(false);
+      return;
     }
+
+    setName("");
+    setNotes("");
+    loadClients();
     setCreating(false);
+
+    // Navegar directamente a la escuela recien creada
+    if (data?.id) {
+      router.push(`/app/clients/${data.id}`);
+    }
   };
 
   const downloadExport = async (item: ExportRow) => {
