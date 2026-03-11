@@ -33,6 +33,11 @@ export default function ClientDetailPage() {
   const { clientId } = useParams<{ clientId: string }>();
   const supabase = getSupabaseClient();
   const [client, setClient] = useState<ClientRow | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [savingClient, setSavingClient] = useState(false);
+  const [deletingClient, setDeletingClient] = useState(false);
+  const [clientName, setClientName] = useState("");
+  const [clientNotes, setClientNotes] = useState("");
   const [frames, setFrames] = useState<FrameRow[]>([]);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +72,8 @@ export default function ClientDetailPage() {
       setError(clientError?.message || framesError?.message || jobsError?.message || "Error al cargar.");
     } else {
       setClient(clientData as ClientRow);
+      setClientName((clientData as ClientRow).name);
+      setClientNotes((clientData as ClientRow).notes ?? "");
       setFrames((framesData ?? []) as FrameRow[]);
       setJobs((jobsData ?? []) as JobRow[]);
     }
@@ -79,6 +86,45 @@ export default function ClientDetailPage() {
     }, 0);
     return () => clearTimeout(handle);
   }, [loadData]);
+
+  const handleClientSave = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!client) return;
+    setSavingClient(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("clients")
+      .update({ name: clientName, notes: clientNotes || null })
+      .eq("id", client.id)
+      .select()
+      .single();
+    if (error) {
+      setError(error.message);
+    } else {
+      setClient(data as ClientRow);
+      setEditing(false);
+    }
+    setSavingClient(false);
+  };
+
+  const handleClientDelete = async () => {
+    if (!client) return;
+    const confirmed = window.confirm(
+      "Seguro? Esto eliminará la escuela y todos sus grupos y entregas asociados.",
+    );
+    if (!confirmed) return;
+    setDeletingClient(true);
+    setError(null);
+    try {
+      const { error } = await supabase.from("clients").delete().eq("id", client.id);
+      if (error) throw error;
+      window.location.href = "/app/escuelas";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar la escuela.");
+    } finally {
+      setDeletingClient(false);
+    }
+  };
 
   const handleFrameUpload = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -145,21 +191,82 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="space-y-2">
           <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted)]">
             Escuela
           </p>
-          <h2 className="text-2xl font-semibold text-white">
-            {client?.name ?? "Cargando..."}
-          </h2>
+          {editing ? (
+            <form onSubmit={handleClientSave} className="space-y-2">
+              <input
+                value={clientName}
+                onChange={(e) => setClientName(e.target.value)}
+                className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--panel-strong)] px-3 py-2 text-sm text-white"
+              />
+              <textarea
+                value={clientNotes}
+                onChange={(e) => setClientNotes(e.target.value)}
+                placeholder="Notas (opcional)"
+                className="w-full max-w-md rounded-xl border border-[var(--border)] bg-[var(--panel-strong)] px-3 py-2 text-sm text-white"
+                rows={3}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={savingClient}
+                  className="rounded-full bg-[var(--accent)] px-4 py-2 text-xs font-semibold text-black hover:brightness-110 disabled:opacity-60"
+                >
+                  {savingClient ? "Guardando..." : "Guardar cambios"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (client) {
+                      setClientName(client.name);
+                      setClientNotes(client.notes ?? "");
+                    }
+                    setEditing(false);
+                  }}
+                  className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--muted)] hover:bg-[var(--panel-strong)]"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div>
+              <h2 className="text-2xl font-semibold text-white">
+                {client?.name ?? "Cargando..."}
+              </h2>
+              {client?.notes && (
+                <p className="mt-1 max-w-xl text-sm text-[var(--muted)]">{client.notes}</p>
+              )}
+            </div>
+          )}
         </div>
-        <Link
-          href={`/app/clients/${clientId}/jobs/new`}
-          className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black hover:brightness-110"
-        >
-          Nuevo grupo
-        </Link>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="rounded-full border border-[var(--border)] px-4 py-2 text-xs font-semibold text-[var(--muted)] hover:bg-[var(--panel-strong)]"
+          >
+            Editar escuela
+          </button>
+          <button
+            type="button"
+            onClick={handleClientDelete}
+            disabled={deletingClient}
+            className="rounded-full border border-red-500/30 px-4 py-2 text-xs font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-60"
+          >
+            {deletingClient ? "Eliminando..." : "Eliminar escuela"}
+          </button>
+          <Link
+            href={`/app/clients/${clientId}/jobs/new`}
+            className="rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-black hover:brightness-110"
+          >
+            Nuevo grupo
+          </Link>
+        </div>
       </div>
 
       {loading && (

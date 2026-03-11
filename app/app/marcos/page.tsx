@@ -20,6 +20,10 @@ export default function MarcosPage() {
   const [frameName, setFrameName] = useState("");
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [savingFrame, setSavingFrame] = useState(false);
+  const [deletingFrameId, setDeletingFrameId] = useState<string | null>(null);
   const frameInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadFrames = useCallback(async () => {
@@ -93,6 +97,53 @@ export default function MarcosPage() {
       return;
     }
     setError("Solo se permite marco PNG.");
+  };
+
+  const handleFrameRename = async (frame: FrameRow) => {
+    setEditingId(frame.id);
+    setEditingName(frame.name);
+  };
+
+  const handleFrameSave = async (frame: FrameRow) => {
+    setSavingFrame(true);
+    setError(null);
+    const { data, error } = await supabase
+      .from("frames")
+      .update({ name: editingName })
+      .eq("id", frame.id)
+      .select("id, name, file_path, created_at")
+      .single();
+    if (error) {
+      setError(error.message);
+    } else {
+      setFrames((prev) =>
+        prev.map((f) => (f.id === frame.id ? (data as FrameRow) : f)),
+      );
+      setEditingId(null);
+      setEditingName("");
+    }
+    setSavingFrame(false);
+  };
+
+  const handleFrameDelete = async (frame: FrameRow) => {
+    const confirmed = window.confirm(
+      "Seguro? Esto eliminará el marco del catálogo global.",
+    );
+    if (!confirmed) return;
+    setDeletingFrameId(frame.id);
+    setError(null);
+    try {
+      // Borrar archivo de storage
+      await supabase.storage.from("frames").remove([frame.file_path]);
+      // Borrar registro
+      const { error } = await supabase.from("frames").delete().eq("id", frame.id);
+      if (error) throw error;
+      setFrames((prev) => prev.filter((f) => f.id !== frame.id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo eliminar el marco.");
+    } finally {
+      setDeletingFrameId(null);
+    }
   };
 
   return (
@@ -200,13 +251,61 @@ export default function MarcosPage() {
               key={frame.id}
               className="flex items-center justify-between rounded-2xl border border-[var(--border)] bg-[var(--panel-strong)] px-4 py-3 text-sm"
             >
-              <div>
-                <p className="font-medium text-white">{frame.name}</p>
-                <p className="text-xs text-[var(--muted)]">{frame.file_path}</p>
+              <div className="max-w-md">
+                {editingId === frame.id ? (
+                  <input
+                    value={editingName}
+                    onChange={(e) => setEditingName(e.target.value)}
+                    className="w-full rounded-xl border border-[var(--border)] bg-[var(--panel)] px-3 py-2 text-sm text-white"
+                  />
+                ) : (
+                  <p className="font-medium text-white">{frame.name}</p>
+                )}
+                <p className="mt-1 text-xs text-[var(--muted)]">{frame.file_path}</p>
               </div>
-              <span className="text-[10px] text-[var(--muted)]">
-                {new Date(frame.created_at).toLocaleDateString("es-ES")}
-              </span>
+              <div className="flex flex-col items-end gap-2 text-[10px] text-[var(--muted)]">
+                <span>{new Date(frame.created_at).toLocaleDateString("es-ES")}</span>
+                <div className="flex flex-wrap justify-end gap-2 text-xs">
+                  {editingId === frame.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleFrameSave(frame)}
+                        disabled={savingFrame}
+                        className="rounded-full bg-[var(--accent)] px-3 py-1 font-semibold text-black disabled:opacity-60"
+                      >
+                        {savingFrame ? "Guardando..." : "Guardar"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditingName("");
+                        }}
+                        className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--muted)] hover:bg-[var(--panel)]"
+                      >
+                        Cancelar
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleFrameRename(frame)}
+                      className="rounded-full border border-[var(--border)] px-3 py-1 text-[var(--muted)] hover:bg-[var(--panel)]"
+                    >
+                      Renombrar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleFrameDelete(frame)}
+                    disabled={deletingFrameId === frame.id}
+                    className="rounded-full border border-red-500/30 px-3 py-1 font-semibold text-red-200 hover:bg-red-500/10 disabled:opacity-60"
+                  >
+                    {deletingFrameId === frame.id ? "Eliminando..." : "Eliminar"}
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
