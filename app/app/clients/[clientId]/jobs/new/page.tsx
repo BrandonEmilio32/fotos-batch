@@ -64,8 +64,8 @@ export default function NewJobPage() {
       const { data, error } = await supabase
         .from("frames")
         .select("*")
-        .eq("client_id", clientId)
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .order("created_at", { ascending: false });
       if (error) setError(error.message);
       setFrames((data ?? []) as FrameRow[]);
       setLoading(false);
